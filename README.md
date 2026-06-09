@@ -423,18 +423,3 @@ pytest --cov=backend
 ## ⭐ Star History
 
 如果这个项目对你有帮助，欢迎点一个 Star 支持项目持续更新。
-
----
-
-## 👨‍💻 作者
-
-AI Security / AI Red Team / LLM Security Engineering
-
-专注方向：
-
-* LLM Security
-* Agent Security
-* RAG Security
-* Prompt Injection
-* AI Red Team
-* MCP Security
