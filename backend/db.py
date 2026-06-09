@@ -11,6 +11,7 @@ conn = psycopg2.connect(
     port=POSTGRES_PORT
 )
 cursor = conn.cursor()
+
 # 初始化日志表
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS request_logs (
@@ -27,7 +28,7 @@ conn.commit()
 
 # Redis
 r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
-# 示例黑名单缓存
+
 BLACKLIST_KEY = "prompt_blacklist"
 BLACKLIST = ["eval", "exec", "curl", "wget", "os.system"]
 for word in BLACKLIST:
