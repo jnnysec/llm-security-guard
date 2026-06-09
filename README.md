@@ -240,7 +240,7 @@ llm-security-guard/
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/<your-name>/llm-security-guard.git
+git clone https://github.com/jnnysec/llm-security-guard.git
 
 cd llm-security-guard
 ```
@@ -249,6 +249,23 @@ cd llm-security-guard
 
 ```bash
 docker-compose up --build
+```
+
+启动后会运行：
+
+* FastAPI Backend：`http://localhost:8000`
+* Swagger API 文档：`http://localhost:8000/docs`
+* Streamlit Dashboard：`http://localhost:8501`
+* PostgreSQL：`localhost:5432`
+* Redis：`localhost:6379`
+
+本地开发也可以使用内存存储直接启动：
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn backend.main:app --reload
 ```
 
 ---
@@ -296,7 +313,13 @@ POST /filter
 ```json
 {
   "safe": false,
-  "reason": "Prompt Injection Detected"
+  "score": 0,
+  "risk_score": 100,
+  "reason": "尝试覆盖系统或开发者指令",
+  "risk_types": [
+    "Prompt Injection"
+  ],
+  "latency_ms": 3.21
 }
 ```
 
@@ -321,12 +344,30 @@ POST /audit
 ```json
 {
   "safe_text": "用户手机号：***********",
-  "score": 50,
+  "score": 65,
   "issues": [
     "手机号"
-  ]
+  ],
+  "safe": false
 }
 ```
+
+### 指标与日志
+
+```http
+GET /metrics
+GET /logs?limit=100
+GET /logs/export
+```
+
+### 红队评测
+
+```http
+GET /redteam/summary
+GET /redteam
+```
+
+仓库内置 20+ 个中文越狱、注入、泄露、工具滥用、RAG Poisoning 模板，并生成 Qwen / Llama / GLM 三个模型的安全评分对比。
 
 ---
 
@@ -348,6 +389,25 @@ pytest --cov=backend
 
 ```text
 ≥ 80%
+```
+
+当前核心测试覆盖输入过滤、输出脱敏、红队摘要、API、日志与指标。
+
+---
+
+## 🎯 Promptfoo 评测
+
+仓库提供 `promptfoo.yaml` 与 `redteam/prompts.csv`，可接入 OpenAI Compatible API：
+
+```bash
+export QWEN_API_BASE_URL="https://your-qwen-endpoint/v1"
+export QWEN_API_KEY="..."
+export LLAMA_API_BASE_URL="https://your-llama-endpoint/v1"
+export LLAMA_API_KEY="..."
+export GLM_API_BASE_URL="https://your-glm-endpoint/v1"
+export GLM_API_KEY="..."
+
+npx promptfoo@latest eval -c promptfoo.yaml
 ```
 
 ---
