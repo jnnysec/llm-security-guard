@@ -6,3 +6,5 @@ __pycache__/
 htmlcov/
 .env
 .DS_Store
+reports/*.json
+reports/*.csv

@@ -363,11 +363,26 @@ GET /logs/export
 ### 红队评测
 
 ```http
-GET /redteam/summary
-GET /redteam
+GET /redteam/summary?mode=auto
+GET /redteam?mode=simulated
+POST /redteam/run?mode=live&save=true
 ```
 
 仓库内置 20+ 个中文越狱、注入、泄露、工具滥用、RAG Poisoning 模板，并生成 Qwen / Llama / GLM 三个模型的安全评分对比。
+
+评测模式：
+
+* `simulated`：不调用外部模型，使用本地护栏和确定性评分生成可复现结果。
+* `live`：调用 OpenAI Compatible API，基于真实模型响应评估拒答、泄露和危险输出。
+* `auto`：有模型凭证时使用 `live`，未配置时自动回退到 `simulated`。
+
+保存报告：
+
+```bash
+curl -X POST "http://localhost:8000/redteam/run?mode=auto&save=true"
+```
+
+报告会保存到 `reports/`，同时生成 JSON 和 CSV。
 
 ---
 
@@ -392,6 +407,34 @@ pytest --cov=backend
 ```
 
 当前核心测试覆盖输入过滤、输出脱敏、红队摘要、API、日志与指标。
+
+---
+
+## 🔌 真实模型接入
+
+复制环境变量模板：
+
+```bash
+cp .env.example .env
+```
+
+配置任意 OpenAI Compatible API：
+
+```bash
+export QWEN_API_BASE_URL="https://your-qwen-endpoint/v1"
+export QWEN_API_KEY="..."
+export QWEN_MODEL="qwen"
+
+export LLAMA_API_BASE_URL="https://your-llama-endpoint/v1"
+export LLAMA_API_KEY="..."
+export LLAMA_MODEL="llama"
+
+export GLM_API_BASE_URL="https://your-glm-endpoint/v1"
+export GLM_API_KEY="..."
+export GLM_MODEL="glm"
+```
+
+Docker Compose 会自动读取这些环境变量。未配置 key 时，Dashboard 和 API 会明确显示 provider 未配置，并使用 `simulated` 结果。
 
 ---
 

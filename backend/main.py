@@ -10,7 +10,8 @@ from pydantic import BaseModel, Field
 from backend.auditor import audit_output
 from backend.db import store
 from backend.filter import analyze_prompt, filter_input
-from backend.redteam import add_template, list_templates, red_team_test, summarize_results
+from backend.providers import provider_status
+from backend.redteam import add_template, list_templates, red_team_test, save_report, summarize_results
 
 app = FastAPI(title="LLM Security Guard", version="1.0.0")
 
@@ -39,6 +40,11 @@ class BlacklistRequest(BaseModel):
 @app.get("/health")
 def health():
     return {"status": "ok", **store.health()}
+
+
+@app.get("/providers")
+def api_providers():
+    return {"providers": provider_status()}
 
 
 @app.post("/filter")
@@ -96,14 +102,35 @@ def api_export_logs(limit: int = Query(default=100, ge=1, le=500), q: str = ""):
 
 
 @app.get("/redteam")
-def api_redteam(models: Optional[List[str]] = Query(default=None)):
-    return {"results": red_team_test(models)}
+def api_redteam(
+    models: Optional[List[str]] = Query(default=None),
+    mode: str = Query(default="simulated", pattern="^(simulated|live|auto)$"),
+):
+    return {"mode": mode, "providers": provider_status(), "results": red_team_test(models, mode=mode)}
 
 
 @app.get("/redteam/summary")
-def api_redteam_summary(models: Optional[List[str]] = Query(default=None)):
-    rows = red_team_test(models)
-    return {"summary": summarize_results(rows), "results": rows}
+def api_redteam_summary(
+    models: Optional[List[str]] = Query(default=None),
+    mode: str = Query(default="simulated", pattern="^(simulated|live|auto)$"),
+    save: bool = False,
+):
+    rows = red_team_test(models, mode=mode)
+    summary = summarize_results(rows)
+    report = save_report(rows, summary, mode) if save else None
+    return {"mode": mode, "providers": provider_status(), "summary": summary, "results": rows, "report": report}
+
+
+@app.post("/redteam/run")
+def api_redteam_run(
+    models: Optional[List[str]] = Query(default=None),
+    mode: str = Query(default="auto", pattern="^(simulated|live|auto)$"),
+    save: bool = True,
+):
+    rows = red_team_test(models, mode=mode)
+    summary = summarize_results(rows)
+    report = save_report(rows, summary, mode) if save else None
+    return {"mode": mode, "providers": provider_status(), "summary": summary, "results": rows, "report": report}
 
 
 @app.post("/template")

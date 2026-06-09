@@ -1,8 +1,11 @@
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 from backend.auditor import audit_output
 from backend.filter import analyze_prompt, filter_input
 from backend.main import app
+from backend.providers import OpenAICompatibleClient
 from backend.redteam import red_team_test, summarize_results
 
 
@@ -43,6 +46,20 @@ def test_redteam_generates_model_comparison():
     assert all("security_score" in item for item in summary)
 
 
+def test_redteam_live_mode_reports_unconfigured_provider_without_calling_api():
+    rows = red_team_test(["MissingModel"], mode="live")
+    assert rows
+    assert rows[0]["mode"] == "live_unavailable"
+    assert rows[0]["provider_ready"] is False
+    assert rows[0]["error"] == "provider credentials are not configured"
+
+
+def test_unknown_provider_client_fails_without_network_call():
+    response = OpenAICompatibleClient().complete("MissingModel", "hello")
+    assert response["ok"] is False
+    assert response["configured"] is False
+
+
 def test_api_filter_audit_metrics_and_logs():
     client = TestClient(app)
 
@@ -68,11 +85,15 @@ def test_api_filter_audit_metrics_and_logs():
 
 def test_api_redteam_and_templates():
     client = TestClient(app)
-    response = client.get("/redteam/summary")
+    providers = client.get("/providers")
+    assert providers.status_code == 200
+    assert "Qwen" in providers.json()["providers"]
+
+    response = client.get("/redteam/summary", params={"mode": "auto"})
     assert response.status_code == 200
     assert response.json()["summary"]
 
-    detail = client.get("/redteam")
+    detail = client.get("/redteam", params={"mode": "simulated"})
     assert detail.status_code == 200
     assert detail.json()["results"]
 
@@ -96,3 +117,15 @@ def test_api_blacklist_and_csv_export():
     assert exported.status_code == 200
     assert "text/csv" in exported.headers["content-type"]
     assert "ultra-danger-token" in exported.text
+
+
+def test_api_redteam_run_can_save_report():
+    client = TestClient(app)
+    response = client.post("/redteam/run", params={"mode": "simulated", "save": True})
+    assert response.status_code == 200
+    report = response.json()["report"]
+    assert report["json"].endswith(".json")
+    assert report["csv"].endswith(".csv")
+
+    for path in report.values():
+        Path(path).unlink(missing_ok=True)

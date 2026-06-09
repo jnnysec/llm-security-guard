@@ -14,8 +14,8 @@ def api_get(path: str, **params):
     return resp.json()
 
 
-def api_post(path: str, payload: dict):
-    resp = requests.post(f"{BACKEND_URL}{path}", json=payload, timeout=8)
+def api_post(path: str, payload: dict | None = None, **params):
+    resp = requests.post(f"{BACKEND_URL}{path}", params=params, json=payload or {}, timeout=30)
     resp.raise_for_status()
     return resp.json()
 
@@ -38,10 +38,18 @@ try:
 
     with tab_overview:
         st.subheader("模型安全评分")
-        redteam = api_get("/redteam/summary")
+        mode = st.segmented_control("评测模式", ["auto", "simulated", "live"], default="auto")
+        providers = api_get("/providers")["providers"]
+        provider_df = pd.DataFrame(providers.values())
+        st.dataframe(provider_df, use_container_width=True, hide_index=True)
+
+        redteam = api_get("/redteam/summary", mode=mode)
         summary_df = pd.DataFrame(redteam["summary"])
         result_df = pd.DataFrame(redteam["results"])
         st.dataframe(summary_df, use_container_width=True, hide_index=True)
+        if st.button("保存评测报告", use_container_width=False):
+            report = api_post("/redteam/run", None, mode=mode, save=True)
+            st.json(report["report"])
 
         st.subheader("红队样本结果")
         categories = ["全部"] + sorted(result_df["category"].unique().tolist())
