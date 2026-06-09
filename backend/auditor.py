@@ -4,7 +4,6 @@ from typing import Dict
 def audit_output(text: str) -> Dict:
     issues = []
     safe_text = text
-    # 脱敏手机号/身份证
     phone_pattern = r"\b\d{11}\b"
     id_pattern = r"\b\d{17}[\dXx]\b"
     if re.search(phone_pattern, text):
@@ -13,7 +12,6 @@ def audit_output(text: str) -> Dict:
     if re.search(id_pattern, text):
         issues.append("身份证")
         safe_text = re.sub(id_pattern, "*****************", safe_text)
-    # 安全评分
-    score = 100 - len(issues)*50
+    score = 100 - len(issues) * 50
     score = max(score, 0)
     return {"safe_text": safe_text, "score": score, "issues": issues}
